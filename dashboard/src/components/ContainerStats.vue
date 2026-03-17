@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import { useAuthStore } from "../stores/auth";
 
 const props = defineProps({
@@ -13,16 +13,25 @@ const memMax = ref(0)
 
 let ws
 
+const memPercent = computed(() => {
+  if (!memMax.value || memMax.value === 0) return 0;
+  return (memory.value / memMax.value) * 100;
+});
+
 onMounted(() => {
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/stats?token=${authStore.token}`;
   ws = new WebSocket(wsUrl);
 
   ws.onmessage = (e) => {
-    const data = JSON.parse(e.data)
-    cpu.value = data.cpu
-    memory.value = data.memory
-    memMax.value = data.memMax
+    try {
+      const data = JSON.parse(e.data)
+      cpu.value = data.cpu
+      memory.value = data.memory
+      memMax.value = data.memMax
+    } catch (err) {
+      console.error("Failed to parse stats:", err)
+    }
   }
 })
 
@@ -32,55 +41,47 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-<div class="stats-bar">
-  <div class="stat-item">
-    <span class="stat-name">CPU:</span>
-    <span class="stat-value text-green-400">{{ cpu.toFixed(2) }}%</span>
-  </div>
+  <div class="flex flex-wrap gap-8 p-4 bg-current/5 border border-current/10 rounded-xl font-mono text-sm items-center shadow-inner">
+    
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col">
+        <span class="opacity-50 font-medium uppercase text-[10px] tracking-wider leading-none mb-1">CPU Load</span>
+        <span class="text-secondary font-bold tabular-nums text-base leading-none">
+          {{ cpu.toFixed(1) }}%
+        </span>
+      </div>
+      <div class="w-20 h-2 bg-current/10 rounded-full overflow-hidden hidden sm:block">
+        <div 
+          class="h-full bg-secondary transition-all duration-700 ease-out" 
+          :style="{ width: `${Math.min(cpu, 100)}%` }"
+        ></div>
+      </div>
+    </div>
 
-  <div class="stat-item">
-    <span class="stat-name">Memory:</span>
-    <span class="stat-value text-blue-400">
-      {{ (memory / 1024 / 1024).toFixed(0) }} MB
-    </span>
-  </div>
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col">
+        <span class="opacity-50 font-medium uppercase text-[10px] tracking-wider leading-none mb-1">Memory Usage</span>
+        <div class="flex items-baseline gap-1">
+          <span class="text-primary font-bold tabular-nums text-base leading-none">
+            {{ (memory / 1024 / 1024).toFixed(0) }}
+          </span>
+          <span class="text-[10px] opacity-40">/ {{ (memMax / 1024 / 1024).toFixed(0) }} MB</span>
+        </div>
+      </div>
+      
+      <div class="w-24 h-2 bg-current/10 rounded-full overflow-hidden hidden md:block">
+        <div 
+          class="h-full bg-primary transition-all duration-700 ease-out" 
+          :style="{ width: `${Math.min(memPercent, 100)}%` }"
+        ></div>
+      </div>
+    </div>
 
-  <div class="stat-item">
-    <span class="stat-name">Limit:</span>
-    <span class="stat-value text-purple-400">
-      {{ (memMax / 1024 / 1024).toFixed(0) }} MB
-    </span>
+    <div class="ml-auto hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-current/5 border border-current/5">
+      <div :class="cpu > 80 || memPercent > 90 ? 'bg-red-500 animate-pulse' : 'bg-secondary'" class="w-2 h-2 rounded-full"></div>
+      <span class="text-[10px] font-bold uppercase tracking-tighter opacity-70">
+        {{ cpu > 80 || memPercent > 90 ? 'High Load' : 'Healthy' }}
+      </span>
+    </div>
   </div>
-</div>
 </template>
-
-<style scoped>
-.stats-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #1e1e1e;
-  border-radius: 8px;
-  border: 1px solid #444;
-  font-family: monospace;
-  font-size: 0.95rem;
-  justify-content: flex-start;
-  align-items: center;
-}
-
-.stat-item {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.stat-name {
-  color: #888;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-weight: 600;
-}
-</style>

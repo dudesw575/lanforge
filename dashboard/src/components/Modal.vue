@@ -1,93 +1,61 @@
 <script setup>
 const props = defineProps({
-  show: Boolean
-})
+  show: Boolean,
+});
+
+defineEmits(['close', 'opened']);
 </script>
 
 <template>
   <Transition name="modal" @after-enter="$emit('opened')">
-    <div v-if="show" class="modal-mask">
-      <div class="modal-container flex flex-col h-5/6 w-11/12 max-w-6xl">
-        <div class="modal-header">
-          <slot name="header">default header</slot>
-        </div>
+    <div v-if="show" 
+         class="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex justify-center items-center p-4"
+         @click.self="$emit('close')">
+      
+      <div class="modal-container flex flex-col h-5/6 w-11/12 max-w-6xl bg-bg border border-current/10 rounded-xl shadow-2xl overflow-hidden transition-transform duration-300">
+        
+        <header class="px-6 py-4 border-b border-current/10 bg-navbar-bg text-navbar-text flex justify-between items-center">
+          <slot name="header">
+            <span class="font-bold text-lg">Default Header</span>
+          </slot>
+          <button @click="$emit('close')" class="hover:opacity-70 text-2xl leading-none">&times;</button>
+        </header>
 
-        <div class="modal-body flex-1 overflow-hidden">
+        <div class="modal-body flex-1 overflow-hidden p-6">
           <slot name="body"></slot>
         </div>
 
-        <div class="modal-footer">
-          <slot name="footer">
-            <button class="modal-default-button" @click="$emit('close')">Close</button>
-          </slot>
-        </div>
+        <footer class="px-6 py-4 border-t border-current/10 bg-current/5 flex justify-between items-center">
+          <div class="flex gap-3">
+            <slot name="extra-actions"></slot>
+          </div>
+
+          <button 
+            class="bg-primary hover:bg-primary-hover text-navbar-text px-6 py-2 rounded-lg font-bold shadow-md transition-colors active:scale-95" 
+            @click="$emit('close')"
+          >
+            Close
+          </button>
+        </footer>
       </div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
-.modal-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background-color: rgba(0,0,0,0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-container {
-  background-color: #1e293b;
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid #334155;
-  color: #f1f5f9;
-  font-weight: bold;
-  font-size: 1.2rem;
-}
-
-.modal-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 1rem;
-}
-
-.modal-footer {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid #334155;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.modal-default-button {
-  padding: 0.4rem 1rem;
-  background-color: #3b82f6;
-  color: #fff;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  border: none;
-}
-
-.modal-default-button:hover {
-  background-color: #2563eb;
-}
-
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
 
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+
 .modal-enter-from .modal-container,
 .modal-leave-to .modal-container {
-  transform: scale(1.05);
+  transform: scale(0.95);
+  opacity: 0;
 }
 </style>

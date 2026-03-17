@@ -11,20 +11,45 @@ let term: Terminal, fitAddon: FitAddon, ws: WebSocket, resizeObserver: ResizeObs
 
 const authStore = useAuthStore();
 
-// Expose a method to parent to refit terminal
 const fitTerminal = () => {
-  if (fitAddon && terminalEl.value) fitAddon.fit();
+  if (fitAddon && terminalEl.value && terminalEl.value.offsetHeight > 0) {
+    fitAddon.fit();
+  }
 };
-defineExpose({ fitTerminal });
+
+const downloadLogs = () => {
+  if (!term) return;
+  const buffer = term.buffer.active;
+  let logText = "";
+  for (let i = 0; i < buffer.length; i++) {
+    const line = buffer.getLine(i);
+    if (line) logText += line.translateToString() + "\n";
+  }
+  const blob = new Blob([logText], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `container-${props.containerID}-logs.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+defineExpose({ fitTerminal, downloadLogs });
 
 onMounted(async () => {
   term = new Terminal({
     convertEol: true,
     cursorBlink: true,
     fontSize: 13,
-    fontFamily: "Menlo, Monaco, 'Courier New', monospace",
-    scrollback: 5000,
-    theme: { background: "#0f172a", foreground: "#e5e7eb", cursor: "#22c55e" },
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    scrollback: 10000,
+    theme: {
+      background: "#0f172a", 
+      foreground: "#f8fafc", 
+      cursor: "#3b82f6",    
+      selectionBackground: "rgba(59, 130, 246, 0.3)",
+    },
+    allowTransparency: true,
   });
 
   fitAddon = new FitAddon();
@@ -32,41 +57,55 @@ onMounted(async () => {
   term.open(terminalEl.value!);
 
   await nextTick();
-  fitTerminal();
+  setTimeout(fitTerminal, 100);
 
   resizeObserver = new ResizeObserver(() => fitTerminal());
   resizeObserver.observe(terminalEl.value!);
-
+  
+  window.addEventListener('resize', fitTerminal);
   connect();
 });
 
 function connect() {
-  if (!authStore.token) {
-    term.writeln("\x1b[31m[Cannot connect: no auth token]\x1b[0m");
-    return;
-  }
-
+  if (!authStore.token) return;
+  
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
   const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/logs?token=${authStore.token}`;
-
+  
+  console.log("Connecting to logs:", wsUrl);
+  
   ws = new WebSocket(wsUrl);
-
-  ws.onopen = () => term.writeln("\x1b[32m[Connected to container logs]\x1b[0m");
+  
   ws.onmessage = (e) => {
     term.write(e.data);
-    term.scrollToBottom();
   };
-  ws.onclose = () => term.writeln("\x1b[33m[Log stream closed]\x1b[0m");
-  ws.onerror = () => term.writeln("\x1b[31m[WebSocket error]\x1b[0m");
+
+  ws.onerror = (err) => {
+    term.write("\r\n\x1b[31m[Error] Failed to connect to log stream.\x1b[0m\r\n");
+    console.error("WebSocket Error:", err);
+  };
 }
 
 onBeforeUnmount(() => {
   ws?.close();
   resizeObserver?.disconnect();
+  window.removeEventListener('resize', fitTerminal);
   term?.dispose();
 });
 </script>
 
 <template>
-  <div ref="terminalEl" class="w-full h-full"></div>
+  <div class="w-full h-full min-h-[200px] bg-[#0f172a] rounded-lg overflow-hidden">
+    <div ref="terminalEl" class="w-full h-full"></div>
+  </div>
 </template>
+
+<style scoped>
+:deep(.xterm) {
+  padding: 12px;
+  height: 100%;
+}
+:deep(.xterm-viewport) {
+  background-color: transparent !important;
+}
+</style>

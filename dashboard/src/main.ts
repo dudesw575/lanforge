@@ -4,13 +4,22 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import './style.css'
 import App from './App.vue'
 import { router } from './router'
+import { initOidc } from './auth/oidc'
 
-const app = createApp(App)
+async function bootstrap() {
+  const app = createApp(App)
 
-const pinia = createPinia()
-pinia.use(piniaPluginPersistedstate)
-app.use(pinia)
+  const pinia = createPinia()
+  pinia.use(piniaPluginPersistedstate)
+  app.use(pinia)
 
-app.use(router)
+  await initOidc()
 
-app.mount('#app')
+  app.use(router)
+
+  await router.isReady()
+
+  app.mount('#app')
+}
+
+bootstrap()

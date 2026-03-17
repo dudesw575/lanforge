@@ -9,11 +9,9 @@ export interface OidcProfile {
   resource_access?: Record<string, { roles: string[] }>
 }
 
-// ⭐ Enable verbose oidc-client logging
-Log.setLogger(console)
-Log.setLevel(Log.DEBUG)
+// Log.setLogger(console)
+// Log.setLevel(Log.DEBUG)
 
-// ⭐ shared settings
 const oidcSettings = {
   authority: "http://localhost:8081/realms/LanParty",
   client_id: "lan-control-plane",
@@ -30,15 +28,10 @@ const oidcSettings = {
   accessTokenExpiringNotificationTimeInSeconds: 60,
   monitorSession: true,
 
-  userStore: new WebStorageStateStore({
-    store: window.localStorage,
-  }),
+  userStore: new WebStorageStateStore({ store: window.localStorage }),
 }
 
-// ⭐ single instance used everywhere
 export const userManager = new UserManager(oidcSettings)
-
-// ⭐ prevent double initialization
 let initialized = false
 
 export async function initOidc() {
@@ -47,22 +40,20 @@ export async function initOidc() {
 
   const authStore = useAuthStore()
 
-  // ⭐ fires on login AND token refresh
+  userManager.events.addAccessTokenExpired(() => {
+    console.log("❌ Token expired — logging out")
+    authStore.logout()
+  })
+
+  userManager.events.addSilentRenewError((err) => {
+    console.error("🚨 Silent renew error", err)
+    authStore.logout()
+  })
+
   userManager.events.addUserLoaded((user: User) => {
-    const expiresIn = user.expires_in ?? 0
-    const expTime = new Date(Date.now() + expiresIn * 1000)
-
-    console.log("✅ OIDC USER LOADED / REFRESHED")
-    console.log("Access token expires in:", expiresIn, "seconds")
-    console.log("Expires at:", expTime.toLocaleTimeString())
-
+    const expiresAt = Math.floor(Date.now() / 1000) + (user.expires_in ?? 3600)
     const profile = user.profile as unknown as OidcProfile
-
-    const roles =
-      profile.resource_access?.["lan-control-plane"]?.roles ?? []
-
-    const expiresAt =
-      Math.floor(Date.now() / 1000) + (user.expires_in ?? 3600)
+    const roles = profile.resource_access?.["lan-control-plane"]?.roles ?? []
 
     authStore.setUser(
       {
@@ -75,51 +66,28 @@ export async function initOidc() {
       },
       user.access_token,
       user.refresh_token,
-      expiresAt,
+      expiresAt
     )
   })
 
-  // ⭐ when token about to expire
-  userManager.events.addAccessTokenExpiring(() => {
-    console.log("⚠️ Access token expiring soon — silent renew should start")
-  })
-
-  // ⭐ when token fully expired
-  userManager.events.addAccessTokenExpired(() => {
-    console.log("❌ Access token expired")
-  })
-
-  // ⭐ silent renew failed
-  userManager.events.addSilentRenewError((err) => {
-    console.error("🚨 Silent renew error:", err)
-  })
-
-  // ⭐ user removed from storage
-  userManager.events.addUserUnloaded(() => {
-    console.log("👋 User unloaded from session")
-    authStore.logout()
-  })
-
-  // ⭐ identity provider logout detected
-  userManager.events.addUserSignedOut(() => {
-    console.log("🔐 User signed out from IdP")
-    authStore.logout()
-  })
-
-  // ⭐ load stored user on startup
-  const user = await userManager.getUser()
-
-  if (user) {
-    console.log("🔁 Restoring existing user session")
-
-    authStore.setUser(
-      user.profile as unknown as UserProfile,
-      user.access_token,
-      user.refresh_token,
-      Math.floor(Date.now() / 1000) + (user.expires_in ?? 3600),
-    )
-  } else {
-    console.log("ℹ️ No existing OIDC session found")
+  try {
+    const user = await userManager.getUser()
+    if (user && (user.expires_in ?? 0) > 0) {
+      console.log("🔁 Restoring existing user session")
+      const expiresAt = Math.floor(Date.now() / 1000) + (user.expires_in ?? 3600)
+      authStore.setUser(
+        user.profile as unknown as UserProfile,
+        user.access_token,
+        user.refresh_token,
+        expiresAt
+      )
+    } else {
+      console.log("ℹ️ No valid OIDC session")
+      authStore.logout()
+    }
+  } finally {
+    authStore.ready = true
+    console.log("✅ Auth initialization complete")
   }
 }
 
@@ -130,27 +98,25 @@ export async function login() {
 }
 
 export async function logout() {
+  const authStore = useAuthStore()
   try {
     console.log("➡️ Redirecting to logout")
     await userManager.signoutRedirect({
-      post_logout_redirect_uri: window.location.origin + "/logout-callback"
+      post_logout_redirect_uri: window.location.origin + "/logout-callback",
     })
   } catch (err) {
     console.error("Logout redirect failed", err)
-    useAuthStore().logout()
+    authStore.logout()
   }
 }
 
 export async function getToken(): Promise<string | null> {
+  const authStore = useAuthStore()
+  if (!authStore.ready) await initOidc()
+
   const user = await userManager.getUser()
-
-  if (!user) {
-    console.log("⚠️ No user session when requesting token")
-    return null
-  }
-
-  const expiresIn = user.expires_in ?? 0
-  console.log("🔑 Token requested, expires in", expiresIn, "seconds")
+  if (!user) return null
+  if ((user.expires_in ?? 0) <= 0) return null
 
   return user.access_token ?? null
 }

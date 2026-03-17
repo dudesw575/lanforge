@@ -1,41 +1,95 @@
 @import "tailwindcss";
 
+@theme {
+  --color-bg: var(--bg);
+  --color-text: var(--text);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --color-navbar-bg: var(--navbar-bg);
+  --color-navbar-text: var(--navbar-text);
+}
+
 :root {
-  --color-bg: #f8fafc;
-  --color-text: #111827;
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-secondary: #10b981;
-  --color-secondary-hover: #059669;
-  --color-navbar-bg: #3b82f6;
-  --color-navbar-text: #ffffff;
+  --bg: #f8fafc;
+  --text: #111827;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --secondary: #10b981;
+  --secondary-hover: #059669;
+  --navbar-bg: #ffffff;
+  --navbar-text: #111827;
 }
 
 .dark {
-  --color-bg: #0f172a;
-  --color-text: #f8fafc;
-  --color-primary: #2563eb;
-  --color-primary-hover: #3b82f6;
-  --color-secondary: #059669;
-  --color-secondary-hover: #10b981;
-  --color-navbar-bg: #1e293b;
-  --color-navbar-text: #f8fafc;
+  --bg: #0f172a;
+  --text: #f8fafc;
+  --primary: #2563eb;
+  --primary-hover: #3b82f6;
+  --secondary: #059669;
+  --secondary-hover: #10b981;
+  --navbar-bg: #1e293b;
+  --navbar-text: #f8fafc;
 }
 
-body {
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  font-family: Inter, system-ui, sans-serif;
-  margin: 0;
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+  }
+
+  button {
+    padding: 0.375rem 1.5rem; /* px-6 py-1.5 */
+    border-radius: 0.25rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+    cursor: pointer;
+    border: none;
+  }
 }
 
-button {
-  font-weight: bold;
-  cursor: pointer;
+@layer components {
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+    width: 100%;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .nav-item:hover {
+    background-color: color-mix(in srgb, currentColor, transparent 95%);
+  }
+
+  .router-link-active.nav-item {
+    background-color: color-mix(in srgb, var(--primary), transparent 90%);
+    color: var(--primary);
+    border: 1px solid color-mix(in srgb, var(--primary), transparent 80%);
+  }
+
+  .nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    font-size: 1.125rem;
+  }
 }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 10px;
 }
