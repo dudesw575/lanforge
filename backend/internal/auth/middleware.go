@@ -34,7 +34,7 @@ func NewAuth(issuer string) (*Auth, error) {
 	}
 
 	verifier := provider.Verifier(&oidc.Config{
-		SkipClientIDCheck: true, // Required for Keycloak access tokens
+		SkipClientIDCheck: true,
 	})
 
 	return &Auth{
@@ -74,7 +74,6 @@ func (a *Auth) Middleware(next http.Handler) http.Handler {
 }
 
 func extractBearerToken(r *http.Request) (string, error) {
-	// 1️⃣ Try Authorization header first
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "" {
 		parts := strings.Split(authHeader, " ")
@@ -83,7 +82,6 @@ func extractBearerToken(r *http.Request) (string, error) {
 		}
 	}
 
-	// 2️⃣ Fallback: check query string for websocket token
 	if token := r.URL.Query().Get("token"); token != "" {
 		return token, nil
 	}
@@ -103,7 +101,6 @@ func parseClaims(claims map[string]interface{}) *UserClaims {
 		user.Email = email
 	}
 
-	// Parse roles from resource_access
 	if resourceAccess, ok := claims["resource_access"].(map[string]interface{}); ok {
 
 		if clientRoles, ok := resourceAccess["lan-control-plane"].(map[string]interface{}); ok {

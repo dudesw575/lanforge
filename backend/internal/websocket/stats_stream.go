@@ -41,7 +41,6 @@ func StreamStats(cli *client.Client, w http.ResponseWriter, r *http.Request, id 
 			break
 		}
 
-		// Defensive access for cpu_stats
 		cpuPercent := 0.0
 		if cpuStatsRaw, ok := v["cpu_stats"].(map[string]interface{}); ok {
 			cpuUsageRaw, usageOk := cpuStatsRaw["cpu_usage"].(map[string]interface{})
@@ -63,7 +62,6 @@ func StreamStats(cli *client.Client, w http.ResponseWriter, r *http.Request, id 
 			}
 		}
 
-		// Defensive access for memory_stats
 		var memUsage, memLimit uint64
 		if memStatsRaw, ok := v["memory_stats"].(map[string]interface{}); ok {
 			if usage, ok := memStatsRaw["usage"].(float64); ok {

@@ -12,10 +12,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
 type wsWriter struct {
 	conn *websocket.Conn
 }
@@ -53,9 +49,7 @@ func StreamLogs(cli *client.Client, w http.ResponseWriter, r *http.Request, cont
 
 	writer := &wsWriter{conn: conn}
 
-	// Stream logs continuously
 	if _, err := stdcopy.StdCopy(writer, writer, reader); err != nil && err != io.EOF {
-		// only log if it's a real error, ignore client disconnects
 		fmt.Println("log stream error:", err)
 	}
 }

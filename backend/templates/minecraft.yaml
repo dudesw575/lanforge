@@ -1,0 +1,13 @@
+id: minecraft
+name: Minecraft Server
+description: Vanilla Minecraft Java Edition server using itzg/minecraft-server
+image: itzg/minecraft-server
+env:
+  EULA: "TRUE"
+ports:
+  - host: 25565
+    container: 25565
+volumes:
+  - name: minecraft_data
+    container: /data
+restart: unless-stopped

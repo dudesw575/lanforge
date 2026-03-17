@@ -1,0 +1,16 @@
+id: minecraft-paper
+name: Minecraft Paper Server
+description: Minecraft server using Paper (high‑performance fork of Spigot)
+image: itzg/minecraft-server
+env:
+  EULA: "TRUE"
+  TYPE: "PAPER"
+  VERSION: "LATEST"
+  MAX_PLAYERS: "20"
+ports:
+  - host: 25566
+    container: 25565
+volumes:
+  - name: minecraft_paper_data
+    container: /data
+restart: unless‑stopped

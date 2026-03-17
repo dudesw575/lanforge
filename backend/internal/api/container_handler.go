@@ -39,7 +39,6 @@ func (h *ContainerHandler) Start(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
-// Stop a running container
 func (h *ContainerHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -52,7 +51,6 @@ func (h *ContainerHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
-// Remove a container
 func (h *ContainerHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
