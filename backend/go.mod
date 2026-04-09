@@ -3,27 +3,15 @@ module lanforge
 go 1.26.1
 
 require (
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/go-chi/chi/v5 v5.2.5
 )
 
 require (
-	github.com/coreos/go-oidc v2.5.0+incompatible // indirect
-	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/go-chi/jwtauth/v5 v5.4.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
-	github.com/goccy/go-json v0.10.3 // indirect
-	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
-	github.com/lestrrat-go/httpcc v1.0.1 // indirect
-	github.com/lestrrat-go/httprc/v3 v3.0.0-beta2 // indirect
-	github.com/lestrrat-go/jwx/v3 v3.0.2 // indirect
-	github.com/lestrrat-go/option v1.0.1 // indirect
-	github.com/pquerna/cachecontrol v0.2.0 // indirect
-	github.com/segmentio/asm v1.2.0 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
+	golang.org/x/text v0.35.0 // indirect
 )
 
 require (
