@@ -13,4 +13,4 @@ ports:
 volumes:
   - name: minecraft_paper_data
     container: /data
-restart: unless‑stopped
+restart: unless-stopped

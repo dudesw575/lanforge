@@ -21,7 +21,7 @@ defineEmits(['close', 'opened']);
           <button @click="$emit('close')" class="hover:opacity-70 text-2xl leading-none">&times;</button>
         </header>
 
-        <div class="modal-body flex-1 overflow-hidden p-6">
+        <div class="modal-body flex-1 overflow-auto p-6">
           <slot name="body"></slot>
         </div>
 

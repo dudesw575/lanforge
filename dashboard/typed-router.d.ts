@@ -61,6 +61,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/templates': RouteRecordInfo<
+      '/templates',
+      '/templates',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
   }
 
   /**
@@ -101,6 +108,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/silent-renew.vue': {
       routes:
         | '/silent-renew'
+      views:
+        | never
+    }
+    'src/pages/templates.vue': {
+      routes:
+        | '/templates'
       views:
         | never
     }

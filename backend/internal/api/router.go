@@ -17,6 +17,9 @@ func NewRouter(
 
 	r := chi.NewRouter()
 
+	// Deploy stream — public WebSocket endpoint (stream ID is a random token, not sensitive)
+	r.Get("/deploy/stream", websocket.StreamDeployProgress)
+
 	r.Group(func(r chi.Router) {
 		r.Use(authService.Middleware)
 
@@ -37,9 +40,10 @@ func NewRouter(
 
 		r.Get("/templates", templateHandler.List)
 		r.Get("/templates/{id}", templateHandler.Get)
+		r.With(auth.RequireRole("admin", "operator")).Post("/templates", templateHandler.Create)
 		r.With(auth.RequireRole("admin", "operator")).Post("/templates/{id}/deploy", templateHandler.Deploy)
-
-		r.Get("/deploy/stream/{id}", websocket.StreamDeployProgress)
+		r.With(auth.RequireRole("admin")).Put("/templates/{id}", templateHandler.Update)
+		r.With(auth.RequireRole("admin")).Delete("/templates/{id}", templateHandler.Delete)
 
 		volumeHandler := NewVolumeHandler(containerHandler.service)
 		r.Get("/volumes", volumeHandler.List)

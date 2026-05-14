@@ -11,10 +11,16 @@ let term: Terminal, fitAddon: FitAddon, ws: WebSocket, resizeObserver: ResizeObs
 
 const authStore = useAuthStore();
 
+let resizeTimeout: number;
+
 const fitTerminal = () => {
-  if (fitAddon && terminalEl.value && terminalEl.value.offsetHeight > 0) {
-    fitAddon.fit();
-  }
+  clearTimeout(resizeTimeout);
+
+  resizeTimeout = window.setTimeout(() => {
+    if (fitAddon && terminalEl.value?.offsetHeight) {
+      fitAddon.fit();
+    }
+  }, 50);
 };
 
 const downloadLogs = () => {
@@ -57,10 +63,10 @@ onMounted(async () => {
   term.open(terminalEl.value!);
 
   await nextTick();
-  setTimeout(fitTerminal, 100);
+  // setTimeout(fitTerminal, 100);
 
   resizeObserver = new ResizeObserver(() => fitTerminal());
-  resizeObserver.observe(terminalEl.value!);
+  resizeObserver.observe(terminalEl.value!.parentElement!);
   
   window.addEventListener('resize', fitTerminal);
   connect();
@@ -95,8 +101,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="w-full h-full min-h-[200px] bg-[#0f172a] rounded-lg overflow-hidden">
-    <div ref="terminalEl" class="w-full h-full"></div>
+  <div class="w-full h-full min-h-0 bg-[#0f172a] rounded-lg overflow-hidden">
+    <div ref="terminalEl" class="w-full h-full min-h-0"></div>
   </div>
 </template>
 

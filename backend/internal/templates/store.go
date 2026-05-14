@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -26,16 +27,23 @@ func NewStore(dir string) (*Store, error) {
 }
 
 func (s *Store) loadDirectory(dir string) error {
-	files, _ := os.ReadDir(dir)
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
 	for _, f := range files {
 		if f.IsDir() || filepath.Ext(f.Name()) != ".yaml" {
 			continue
 		}
-		data, _ := os.ReadFile(filepath.Join(dir, f.Name()))
+		data, err := os.ReadFile(filepath.Join(dir, f.Name()))
+		if err != nil {
+			continue
+		}
 		var t Template
 		if err := yaml.Unmarshal(data, &t); err != nil {
 			continue
 		}
+		t.Normalize()
 		s.templates[t.ID] = &t
 	}
 	return nil
@@ -44,7 +52,7 @@ func (s *Store) loadDirectory(dir string) error {
 func (s *Store) List() []*Template {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	list := []*Template{}
+	list := make([]*Template, 0, len(s.templates))
 	for _, t := range s.templates {
 		list = append(list, t)
 	}
@@ -56,4 +64,69 @@ func (s *Store) Get(id string) (*Template, bool) {
 	defer s.mu.RUnlock()
 	t, ok := s.templates[id]
 	return t, ok
+}
+
+func (s *Store) Create(t *Template) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t.Normalize()
+
+	if _, exists := s.templates[t.ID]; exists {
+		return fmt.Errorf("template %q already exists", t.ID)
+	}
+
+	data, err := yaml.Marshal(t)
+	if err != nil {
+		return fmt.Errorf("failed to marshal template: %w", err)
+	}
+
+	path := filepath.Join(s.dir, t.ID+".yaml")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("failed to write template file: %w", err)
+	}
+
+	s.templates[t.ID] = t
+	return nil
+}
+
+func (s *Store) Update(t *Template) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	t.Normalize()
+
+	if _, exists := s.templates[t.ID]; !exists {
+		return fmt.Errorf("template %q not found", t.ID)
+	}
+
+	data, err := yaml.Marshal(t)
+	if err != nil {
+		return fmt.Errorf("failed to marshal template: %w", err)
+	}
+
+	path := filepath.Join(s.dir, t.ID+".yaml")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("failed to write template file: %w", err)
+	}
+
+	s.templates[t.ID] = t
+	return nil
+}
+
+func (s *Store) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.templates[id]; !exists {
+		return fmt.Errorf("template %q not found", id)
+	}
+
+	path := filepath.Join(s.dir, id+".yaml")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove template file: %w", err)
+	}
+
+	delete(s.templates, id)
+	return nil
 }

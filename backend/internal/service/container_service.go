@@ -95,6 +95,20 @@ func (s *ContainerService) CreateAndStart(
 		return "", err
 	}
 
+	// Validate and apply restart policy
+	restartMode := container.RestartPolicyMode(restart)
+	switch restartMode {
+	case container.RestartPolicyDisabled,
+		container.RestartPolicyAlways,
+		container.RestartPolicyOnFailure,
+		container.RestartPolicyUnlessStopped:
+		// valid
+	case "":
+		restartMode = container.RestartPolicyDisabled
+	default:
+		return "", fmt.Errorf("invalid restart policy %q: must be one of: no, always, on-failure, unless-stopped", restart)
+	}
+
 	config := &container.Config{
 		Image:        image,
 		Env:          env,
@@ -105,7 +119,7 @@ func (s *ContainerService) CreateAndStart(
 		PortBindings: portBindings,
 		Mounts:       volumes,
 		RestartPolicy: container.RestartPolicy{
-			Name: container.RestartPolicyMode(restart),
+			Name: restartMode,
 		},
 	}
 
