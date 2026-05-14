@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import { useAuthStore } from "../stores/auth";
 
@@ -11,7 +11,7 @@ const cpu = ref(0)
 const memory = ref(0)
 const memMax = ref(0)
 
-let ws
+let ws : WebSocket | null = null;
 
 const memPercent = computed(() => {
   if (!memMax.value || memMax.value === 0) return 0;
