@@ -1,0 +1,16 @@
+id: garrysmod
+name: Garry's Mod
+description: Garry's Mod dedicated server
+image: cm2network/gmod
+env:
+  SV_PASSWORD: ""
+  SV_PORT: "27015"
+  MAXPLAYERS: "16"
+  GAMEMODE: "sandbox"
+ports:
+  - host: 27015
+    container: 27015
+volumes:
+  - name: garrysmod_data
+    container: /home/steam/gmod-dedicated
+restart: unless-stopped

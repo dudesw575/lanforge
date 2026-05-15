@@ -1,0 +1,17 @@
+id: valheim
+name: Valheim Server
+description: Valheim dedicated server
+image: lloesche/valheim-server
+env:
+    ADMINLIST_IDS: ""
+    SERVER_NAME: LANForge Valheim
+    SERVER_PASSWORD: secret
+    SERVER_PORT: "2456"
+    WORLD_NAME: LANForge
+ports:
+    - host: 2456
+      container: 2456
+volumes:
+    - name: valheim_data
+      container: /opt/valheim
+restart: unless-stopped

@@ -1,0 +1,19 @@
+id: factorio
+name: Factorio Server
+description: Factorio dedicated server
+image: factoriotools/factorio
+env:
+  SERVER_SETTINGS: ""
+  SERVER_DESCRIPTION: "LANForge Factorio Server"
+  SERVER_NAME: "LANForge Factorio"
+  SERVER_PASSWORD: ""
+  SERVER_MAX_PLAYERS: "10"
+  SERVER_PORT: "34197"
+  SERVER_UPDATE_ON_START: "true"
+ports:
+  - host: 34197
+    container: 34197
+volumes:
+  - name: factorio_data
+    container: /factorio/saves
+restart: unless-stopped

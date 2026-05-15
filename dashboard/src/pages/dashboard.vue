@@ -6,6 +6,7 @@ import api from "../api/client";
 import Modal from "../components/Modal.vue";
 import ContainerLogs from "../components/ContainerLogs.vue";
 import ContainerStats from "../components/ContainerStats.vue";
+import GameLauncher from "../components/GameLauncher.vue";
 import { listTemplates, type Template } from "../api/templates";
 
 interface Container {
@@ -113,8 +114,9 @@ const removeConfirmed = async () => {
 <template>
   <div class="bg-bg text-text transition-colors duration-300">
     <div class="container mx-auto py-8 px-4">
+    <GameLauncher class="mb-12" />
       
-      <!-- Templates Summary -->
+      <!-- Templates Summary
       <section class="mb-10">
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-2xl font-bold flex items-center gap-2">
@@ -146,7 +148,7 @@ const removeConfirmed = async () => {
             No templates yet.
           </div>
         </div>
-      </section>
+      </section> -->
 
       <!-- Containers -->
       <section>

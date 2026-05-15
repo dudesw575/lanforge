@@ -1,0 +1,20 @@
+id: ark
+name: ARK: Survival Evolved
+description: ARK dedicated server
+image: jankapunkt/ark-server
+env:
+  SESSION_NAME: "LANForge ARK"
+  SERVER_PASSWORD: ""
+  ADMIN_PASSWORD: "admin123"
+  MAX_PLAYERS: "20"
+  PORT: "7777"
+  QUERY_PORT: "27015"
+ports:
+  - host: 7777
+    container: 7777
+  - host: 27015
+    container: 27015
+volumes:
+  - name: ark_data
+    container: /home/steam/ark
+restart: unless-stopped
