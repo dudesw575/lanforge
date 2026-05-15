@@ -1,7 +1,9 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"lanforge/internal/auth"
 	"lanforge/internal/websocket"
@@ -19,6 +21,26 @@ func NewRouter(
 
 	// Deploy stream — public WebSocket endpoint (stream ID is a random token, not sensitive)
 	r.Get("/deploy/stream", websocket.StreamDeployProgress)
+
+	// Version endpoint
+	r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]string{
+			"version":      "0.1.0",
+			"authProvider": "Keycloak",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	// Deploy status endpoint
+	r.Get("/deploy/status", func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]string{
+			"status":      "running",
+			"lastUpdated": time.Now().Format(time.RFC3339),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(authService.Middleware)

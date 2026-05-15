@@ -54,6 +54,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/settings': RouteRecordInfo<
+      '/settings',
+      '/settings',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/silent-renew': RouteRecordInfo<
       '/silent-renew',
       '/silent-renew',
@@ -102,6 +109,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/logout-callback.vue': {
       routes:
         | '/logout-callback'
+      views:
+        | never
+    }
+    'src/pages/settings.vue': {
+      routes:
+        | '/settings'
       views:
         | never
     }
