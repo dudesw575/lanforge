@@ -64,10 +64,10 @@ function logout() {
   router.push({ name: "login" });
 }
 
-function openDeleteModal(id: string) {
-  containerToDelete.value = id;
-  showDeleteModal.value = true;
-}
+// function openDeleteModal(id: string) {
+//   containerToDelete.value = id;
+//   showDeleteModal.value = true;
+// }
 
 async function confirmDelete() {
   if (!containerToDelete.value) return;

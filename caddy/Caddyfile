@@ -1,0 +1,52 @@
+auth.home.arpa http://auth.home.arpa {
+    tls internal
+    reverse_proxy keycloak:8080
+}
+
+chat.home.arpa {
+    tls internal
+
+    # Matrix APIs
+    handle /_matrix/* {
+        reverse_proxy matrix-synapse:8008
+    }
+
+    handle /_synapse/* {
+        reverse_proxy matrix-synapse:8008
+    }
+
+    # Element Web
+    handle {
+        reverse_proxy element-web:80
+    }
+}
+
+home.arpa {
+    tls internal
+
+    handle /cert {
+        root * /data/caddy/pki/authorities/local
+        file_server {
+            hide root.key
+        }
+        rewrite * /root.crt
+        header Content-Type "application/x-x509-ca-cert"
+        header Content-Disposition "attachment; filename=lanforge-root.crt"
+    }
+
+    # API
+    # Match any path starting with /api
+    @api_match path /api* /containers* /deploy*
+    handle @api_match {
+        # 1. Strip /api from the beginning of the request path
+        uri strip_prefix /api
+        
+        reverse_proxy api:8080
+    }
+
+
+    # Dashboard (default)
+    handle {
+        reverse_proxy dashboard:80
+    }
+}

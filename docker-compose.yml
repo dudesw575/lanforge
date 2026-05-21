@@ -1,16 +1,139 @@
-# Right now we will only spin up keycloak
 services:
+  # Reverse Proxy (Caddy)
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      lanforge-net:
+        aliases:
+          - home.arpa
+          - auth.home.arpa
+          - chat.home.arpa
+    depends_on:
+      - keycloak
+      - api
+      - dashboard
+    restart: unless-stopped
+    healthcheck:
+        test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+        interval: 5s
+        timeout: 5s
+        retries: 3
+
+  # API Backend (Go)
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lanforge-api
+    environment:
+      - DATABASE_URL=file:LanParty-realm.json
+      - JWT_SECRET=your-secret-key-here-change-in-production
+      - OIDC_ISSUER=https://auth.home.arpa/realms/LanParty
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - caddy_data:/caddy_data:ro
+    networks:
+      - lanforge-net
+    depends_on:
+      - keycloak
+    restart: unless-stopped
+    command: >
+      sh -c "mkdir -p /usr/local/share/ca-certificates && 
+             cp /caddy_data/caddy/pki/authorities/local/root.crt /usr/local/share/ca-certificates/caddy-root.crt && 
+             update-ca-certificates && 
+             ./main"
+
+  # Dashboard Frontend (Vue)
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: lanforge-dashboard
+    environment:
+      - API_URL=http://api:8080
+      - WS_URL=home.arpa
+      - OIDC_ISSUER=https://auth.home.arpa/realms/LanParty
+    volumes:
+      - caddy_data:/caddy_data:ro
+    networks:
+      - lanforge-net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Keycloak
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
     environment:
       - KC_BOOTSTRAP_ADMIN_USERNAME=admin
       - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
-
-    ports:
-      - "127.0.0.1:8081:8080"
-      - "127.0.0.1:9443:8443"
+      - KEYCLOAK_IMPORT=/opt/keycloak/data/import/*
+      - KC_HEALTH_ENABLED=true
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY_HEADERS=xforwarded
+      - KC_HOSTNAME_STRICT=false
+      - KC_PROXY=edge
     volumes:
       - ./keycloak_data:/opt/keycloak/data
-      - ./import:/opt/keycloak/data/import 
-    command: start-dev --import-realm
+      - ./import:/opt/keycloak/data/import
+    ports:
+      - "8080:8080"
+    networks:
+      - lanforge-net
+    command: start --import-realm
+
+  matrix-synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: matrix-synapse
+    environment:
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+    volumes:
+      - ./matrix_data:/data
+      - caddy_data:/caddy_data:ro
+    networks:
+      - lanforge-net
+    depends_on:
+      caddy:
+        condition: service_healthy
+    # extra_hosts:
+    #   - "auth.home.arpa:host-gateway"
+    user: "0" # Temporary root to allow CA injection on boot
+    entrypoint: >
+      sh -c "mkdir -p /usr/local/share/ca-certificates && 
+             cp /caddy_data/caddy/pki/authorities/local/root.crt /usr/local/share/ca-certificates/caddy-root.crt && 
+             update-ca-certificates && 
+             exec /start.py"
+    restart: unless-stopped
+    
+
+  # Element Web Client
+  element-web:
+    image: vectorim/element-web:latest
+    container_name: element-web
+    volumes:
+      - ./element_config.json:/app/config.json:ro
+    networks:
+      - lanforge-net
+    depends_on:
+      caddy:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  lanforge-net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

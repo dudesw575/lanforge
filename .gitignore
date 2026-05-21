@@ -24,3 +24,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+keycloak_data/
+keycloak_data/
+matrix_data/media_store/
+
+plan.md
+matrix_data/homeserver.db
+matrix_data/home.arpa.log.config
+matrix_data/home.arpa.signing.key

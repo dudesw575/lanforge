@@ -1,9 +1,11 @@
+<!-- Templates.vue -->
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useRouter } from "vue-router";
 import Modal from "../components/Modal.vue";
 import ContainerLogs from "../components/ContainerLogs.vue";
+import { buildWsUrl } from "../utils/websocket"; // Import our new core config utility
 import {
   listTemplates,
   createTemplate,
@@ -73,9 +75,8 @@ onMounted(async () => {
   await fetchTemplates();
 });
 
-onUnmounted(() => {
-  deployWS?.close();
-});
+// Note: Manual deployWS?.close() logic removed here inside onUnmounted 
+// because dismissal hooks handle closures contextually now!
 
 const fetchTemplates = async () => {
   try {
@@ -105,10 +106,16 @@ const submitDeploy = async () => {
     messages: ["🔌 Connecting to deployment stream..."],
   };
 
-  // Set up the WebSocket (with auth token) BEFORE awaiting connection so we never miss messages
-  deployWS = new WebSocket(
-    `ws://localhost:8080/deploy/stream?id=${streamId}&token=${authStore.token}`,
-  );
+  // Build the complete token-authorized deployment URL through our utility hook
+  const wsUrl = buildWsUrl(`/deploy/stream?id=${streamId}`);
+  if (!wsUrl) {
+    deployResult.value.status = "failed";
+    deployResult.value.messages.push("❌ Deployment aborted: Unable to establish authentication parameters.");
+    return;
+  }
+
+  // Set up the WebSocket BEFORE awaiting connection so we never miss messages
+  deployWS = new WebSocket(wsUrl);
 
   // Always set the onmessage handler immediately so no broadcasts are lost
   deployWS.onmessage = (e) => {
@@ -169,7 +176,7 @@ const dismissDeployResult = () => {
   deployWS = null;
 };
 
-const openContainerLogs = (containerId: string, name: string) => {
+const openContainerLogs = (containerId: string) => {
   logViewerContainerId.value = containerId;
   logViewerVisible.value = true;
 };
@@ -330,14 +337,13 @@ const switchToYamlView = () => {
 
 const switchToFormView = () => {
   if (templateFormMode.value === "edit" && editingTemplateId.value) {
-    // Update the form from the YAML
     try {
       const templateObj = yamlToTemplate(editYaml.value);
       newTemplate.value = {
-        id: templateObj.id,
-        name: templateObj.name,
-        description: templateObj.description,
-        image: templateObj.image,
+        id: templateObj.id ?? "",
+        name: templateObj.name ?? "",
+        description: templateObj.description ?? "",
+        image: templateObj.image ?? "",
         env: templateObj.env ?? {},
         ports: templateObj.ports ?? [],
         volumes: templateObj.volumes ?? [],
@@ -461,7 +467,7 @@ const fileInput = ref<HTMLInputElement | null>(null);
             Go to Dashboard
           </router-link>
           <button
-            @click="openContainerLogs(deployResult.containerId!, deployResult.containerName || deployResult.streamId)"
+            @click="openContainerLogs(deployResult.containerId!)"
             class="bg-white/10 hover:bg-white/20 text-current px-4 py-2 rounded-lg font-bold text-sm transition-all"
           >
             View Container Logs

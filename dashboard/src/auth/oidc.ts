@@ -9,11 +9,11 @@ export interface OidcProfile {
   resource_access?: Record<string, { roles: string[] }>
 }
 
-// Log.setLogger(console)
-// Log.setLevel(Log.DEBUG)
+Log.setLogger(console)
+Log.setLevel(Log.DEBUG)
 
 const oidcSettings = {
-  authority: "http://localhost:8081/realms/LanParty",
+  authority: import.meta.env.VITE_OIDC_ISSUER || "VITE_APP_OIDC_ISSUER_PLACEHOLDER",
   client_id: "lan-control-plane",
 
   redirect_uri: window.location.origin + "/callback",
@@ -120,3 +120,4 @@ export async function getToken(): Promise<string | null> {
 
   return user.access_token ?? null
 }
+

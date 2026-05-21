@@ -40,6 +40,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/chat': RouteRecordInfo<
+      '/chat',
+      '/chat',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/dashboard': RouteRecordInfo<
       '/dashboard',
       '/dashboard',
@@ -97,6 +104,12 @@ declare module 'vue-router/auto-routes' {
     'src/pages/callback.vue': {
       routes:
         | '/callback'
+      views:
+        | never
+    }
+    'src/pages/chat.vue': {
+      routes:
+        | '/chat'
       views:
         | never
     }

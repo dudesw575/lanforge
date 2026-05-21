@@ -2,14 +2,16 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { useWebSocketStream } from "../composables/useWebSocketStream";
 import "@xterm/xterm/css/xterm.css";
-import { useAuthStore } from "../stores/auth";
+// import { useAuthStore } from "../stores/auth";
 
 const props = defineProps({ containerID: String });
 const terminalEl = ref<HTMLDivElement | null>(null);
-let term: Terminal, fitAddon: FitAddon, ws: WebSocket, resizeObserver: ResizeObserver;
+let term: Terminal, fitAddon: FitAddon, resizeObserver: ResizeObserver;
 
-const authStore = useAuthStore();
+// const authStore = useAuthStore();
+const { connect } = useWebSocketStream();
 
 let resizeTimeout: number;
 
@@ -69,31 +71,45 @@ onMounted(async () => {
   resizeObserver.observe(terminalEl.value!.parentElement!);
   
   window.addEventListener('resize', fitTerminal);
-  connect();
+  connect(`/containers/${props.containerID}/logs`, {
+    onMessage: (e) => term.write(e.data),
+    onError: (err) => {
+      term.write("\r\n\x1b[31m[Error] Failed to connect to log stream.\x1b[0m\r\n");
+      console.error("WebSocket Error:", err);
+    }
+  });
 });
 
-function connect() {
-  if (!authStore.token) return;
+// function connect() {
+//   if (!authStore.token) return;
   
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/logs?token=${authStore.token}`;
+//   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+//   const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/logs?token=${authStore.token}`;
   
-  console.log("Connecting to logs:", wsUrl);
+//   console.log("Connecting to logs:", wsUrl);
   
-  ws = new WebSocket(wsUrl);
+//   ws = new WebSocket(wsUrl);
   
-  ws.onmessage = (e) => {
-    term.write(e.data);
-  };
+//   ws.onmessage = (e) => {
+//     term.write(e.data);
+//   };
 
-  ws.onerror = (err) => {
-    term.write("\r\n\x1b[31m[Error] Failed to connect to log stream.\x1b[0m\r\n");
-    console.error("WebSocket Error:", err);
-  };
-}
+//   ws.onerror = (err) => {
+//     term.write("\r\n\x1b[31m[Error] Failed to connect to log stream.\x1b[0m\r\n");
+//     console.error("WebSocket Error:", err);
+//   };
+// }
+
+
+
+// onBeforeUnmount(() => {
+//   ws?.close();
+//   resizeObserver?.disconnect();
+//   window.removeEventListener('resize', fitTerminal);
+//   term?.dispose();
+// });
 
 onBeforeUnmount(() => {
-  ws?.close();
   resizeObserver?.disconnect();
   window.removeEventListener('resize', fitTerminal);
   term?.dispose();

@@ -1,43 +1,60 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from "vue"
-import { useAuthStore } from "../stores/auth";
+import { ref, computed, onMounted} from "vue"
+// import { useAuthStore } from "../stores/auth";
+import { useWebSocketStream } from "../composables/useWebSocketStream";
 
 const props = defineProps({
   containerID: String
 })
-const authStore = useAuthStore();
+// const authStore = useAuthStore();
 
 const cpu = ref(0)
 const memory = ref(0)
 const memMax = ref(0)
 
-let ws : WebSocket | null = null;
+const { connect } = useWebSocketStream();
+// let ws : WebSocket | null = null;
 
 const memPercent = computed(() => {
   if (!memMax.value || memMax.value === 0) return 0;
   return (memory.value / memMax.value) * 100;
 });
 
+// onMounted(() => {
+//   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+//   const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/stats?token=${authStore.token}`;
+//   ws = new WebSocket(wsUrl);
+
+//   ws.onmessage = (e) => {
+//     try {
+//       const data = JSON.parse(e.data)
+//       cpu.value = data.cpu
+//       memory.value = data.memory
+//       memMax.value = data.memMax
+//     } catch (err) {
+//       console.error("Failed to parse stats:", err)
+//     }
+//   }
+// })
+
+// onBeforeUnmount(() => {
+//   if (ws) ws.close()
+// })
+
 onMounted(() => {
-  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const wsUrl = `${protocol}://localhost:8080/containers/${props.containerID}/stats?token=${authStore.token}`;
-  ws = new WebSocket(wsUrl);
-
-  ws.onmessage = (e) => {
-    try {
-      const data = JSON.parse(e.data)
-      cpu.value = data.cpu
-      memory.value = data.memory
-      memMax.value = data.memMax
-    } catch (err) {
-      console.error("Failed to parse stats:", err)
+  connect(`/containers/${props.containerID}/stats`, {
+    onMessage: (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        cpu.value = data.cpu;
+        memory.value = data.memory;
+        memMax.value = data.memMax;
+      } catch (err) {
+        console.error("Failed to parse stats:", err);
+      }
     }
-  }
-})
-
-onBeforeUnmount(() => {
-  if (ws) ws.close()
-})
+  });
+});
 </script>
 
 <template>

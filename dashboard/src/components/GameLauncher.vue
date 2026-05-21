@@ -1,16 +1,16 @@
+<!-- GameLauncher.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useAuthStore } from "../stores/auth";
 import api from "../api/client";
 import { listTemplates } from "../api/templates";
 import type { Template } from "../api/templates";
+import { buildWsUrl } from "../utils/websocket"; // Clean utility inclusion
 
 interface Props {
   onDeploy?: (template: Template) => void;
 }
 
 const props = defineProps<Props>();
-const authStore = useAuthStore();
 
 const templates = ref<Template[]>([]);
 const loading = ref(true);
@@ -73,14 +73,15 @@ const deploy = async (template: Template) => {
 
   const name = `${template.id}-${Math.floor(Math.random() * 1000)}`;
 
-  // Open WebSocket for logging (fire-and-forget, not needed for deploy to succeed)
-  const ws = new WebSocket(
-    `ws://localhost:8080/deploy/stream?id=${name}&token=${authStore.token}`
-  );
-
-  ws.onmessage = (e) => {
-    console.log("Deploy:", e.data);
-  };
+  // Leverage the central configuration builder to construct the runtime URL and inject authentication
+  const wsUrl = buildWsUrl(`/deploy/stream?id=${name}`);
+  
+  if (wsUrl) {
+    const ws = new WebSocket(wsUrl);
+    ws.onmessage = (e) => {
+      console.log("Deploy:", e.data);
+    };
+  }
 
   try {
     await api.post(`/templates/${template.id}/deploy?name=${encodeURIComponent(name)}`);

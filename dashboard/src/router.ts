@@ -24,6 +24,12 @@ router.beforeEach((to) => {
   if (to.path === "/" && authStore.isAuthenticated) {
     return { path: "/dashboard" }
   }
+
+  // Chat route - redirect to dashboard if not authenticated
+  if (to.path.startsWith('/chat') && !authStore.isAuthenticated) {
+    console.log("🔐 User must log in to access chat")
+    return { path: "/" }
+  }
 })
 
 if (import.meta.hot) {

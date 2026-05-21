@@ -37,7 +37,7 @@ Containerized LAN Party Manager — deploy and manage game servers on a shared D
 docker compose up -d
 ```
 
-This starts Keycloak on `http://localhost:8081` with the `LanParty` realm and a `lan-control-plane` client pre-imported from `LanParty-realm.json`.
+This starts Keycloak on `http://localhost/auth` with the `LanParty` realm and a `lan-control-plane` client pre-imported from `LanParty-realm.json`.
 
 | Credential          | Value         |
 |---------------------|---------------|
