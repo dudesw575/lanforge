@@ -29,7 +29,22 @@ Containerized LAN Party Manager — deploy and manage game servers on a shared D
 - [Go](https://go.dev/dl/) 1.26+
 - [Node.js](https://nodejs.org/) (includes npm)
 - [Docker](https://docs.docker.com/engine/install/) + Docker Compose
-- (Optional) Docker socket accessible by the backend — the Docker CLI needs access to the host daemon.
+
+### ⚠️ Docker Socket Security Notice
+**This project mounts `/var/run/docker.sock` to the backend container for Docker-in-Docker functionality.**
+
+**What this means:**
+- The backend has full control over your host's Docker daemon
+- Can create, start, stop, delete containers with any permissions your host Docker allows
+- **Development OK:** Expected behavior for LAN party management features (deploying game servers)
+- **Production Risk:** If the API is compromised, attacker gains Docker-on-host privileges
+
+**Recommended for production deployments:**
+- Option 1: Run backend only on the docker host (not in Docker itself) ✓ Easiest
+- Option 2: Use read-only volumes where possible + network restrictions
+- Option 3: Implement a Docker proxy service that validates commands before forwarding to daemon
+
+See `docker-compose.yml` line 44 and `plan.md` section 1 for details.
 
 ### 1. Start Keycloak
 
@@ -107,6 +122,28 @@ Available API endpoints (all require a valid access token from Keycloak):
 
 > **Note:** The backend requires access to the Docker daemon socket (`/var/run/docker.sock` on Linux, or the equivalent on macOS via Docker Desktop / Colima / Orbstack).
 
+#### Development Mode Configuration
+The application supports a development/production mode toggle:
+
+```bash
+# Set environment variables before starting
+export NODE_ENV=development  # or production
+export DOCKER_ENABLED=true   # Allow Docker operations (default in dev)
+
+# Or add to backend/.env
+NODE_ENV=development
+DOCKER_ENABLED=true
+```
+
+**Behavior:**
+| Environment | Docker Enabled | What Happens |
+|-------------|---------------|--------------|
+| `NODE_ENV=development` with `DOCKER_ENABLED=true` | ✅ Yes | Full Docker access, all features work |
+| `NODE_ENV=development` without flag | ✅ Yes (defaults) | Full Docker access |
+| `NODE_DOMAIN=production` with `DOCKER_ENABLED=false` | ❌ Disabled | Container creation commands will fail gracefully, logs only streamed |
+
+**For production deployments:** Set `DOCKER_ENABLED=false` and document that container management features are limited. The API remains functional for viewing stats/logs but cannot create/modify containers without the explicit Docker proxy setup.
+
 ### 3. Start the Dashboard
 
 ```bash
@@ -130,7 +167,12 @@ After successful login you will be redirected back to the dashboard where you ca
 
 | Variable       | Default                                     | Description                        |
 |----------------|---------------------------------------------|------------------------------------|
+| `NODE_ENV`     | (unset, inferred)                           | Runtime mode (`development` or `production`) |
+| `DOCKER_ENABLED` | `true`                                    | Enable Docker socket operations    |
 | `OIDC_ISSUER`  | `http://localhost:8081/realms/LanParty`     | Keycloak realm issuer URL          |
+
+**Development:** `NODE_ENV=development, DOCKER_ENABLED=true` (default)  
+**Production:** `NODE_ENV=production, DOCKER_ENABLED=false` (recommended) + use Docker proxy in compose
 
 You can override via `.env` files at `backend/cmd/server/.env` or `backend/.env`, or set them in your shell.
 
@@ -144,61 +186,121 @@ You can override via `.env` files at `backend/cmd/server/.env` or `backend/.env`
 - A publicly-accessible Keycloak instance (self-hosted or managed)
 - A reverse proxy (e.g. Caddy, nginx, Traefik) for TLS termination
 
-### Run with Docker Compose
+### Run with Docker Compose (Recommended)
 
-A production-oriented `docker-compose.yml` can be extended to include all three services:
+This setup includes:
+- **Caddy** — Reverse proxy on ports 80/443, terminates TLS
+- **API Backend** — Go backend at `http://api.home.arpa` 
+- **Dashboard** — Vue frontend at `https://chat.home.arpa`
+- **Keycloak** — OIDC auth at `http://auth.home.arpa/admin`
 
 ```yaml
 services:
-  keycloak:
-    image: quay.io/keycloak/keycloak:latest
-    environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: <secure-admin-password>
+  # Reverse Proxy (Caddy) — Terminates TLS on ports 80/443
+  caddy:
+    image: caddy:2.11.3
+    container_name: caddy
     ports:
-      - "127.0.0.1:8081:8080"
+      - "80:80"
+      - "443:443"
     volumes:
-      - keycloak_data:/opt/keycloak/data
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      lanforge-net:
+        aliases:
+          - home.arpa
+          - auth.home.arpa
+          - chat.home.arpa
+    depends_on:
+      - keycloak
+      - api
+      - dashboard
+    restart: unless-stopped
+
+  # API Backend (Go) — Internal service, no public port
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lanforge-api
+    environment:
+      - DATABASE_URL=file:LanParty-realm.json
+      - JWT_SECRET=change-in-production
+      - OIDC_ISSUER=https://auth.home.arpa/realms/LanParty
+      # NODE_ENV and DOCKER_ENABLED control production behavior (see env section below)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # ⚠️ Security risk in prod
+      - caddy_data:/caddy_data:ro  # Read Caddy-ca certs
+    networks:
+      - lanforge-net
+    depends_on:
+      - keycloak
+    restart: unless-stopped
+
+  # Dashboard (Vue) — Access via Caddy at chat.home.arpa
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: lanforge-dashboard
+    environment:
+      - API_URL=http://api:8080
+      - WS_URL=home.arpa
+      - OIDC_ISSUER=https://auth.home.arpa/realms/LanParty
+    volumes:
+      - caddy_data:/caddy_data:ro  # Read Caddy-ca certs
+    networks:
+      - lanforge-net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Keycloak (OIDC) — Access at auth.home.arpa/admin
+  keycloak:
+    image: keycloak/keycloak:26.6.2
+    container_name: keycloak
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=<secure-password>
+      - KEYCLOAK_IMPORT=/opt/keycloak/data/import/*
+      - KC_HEALTH_ENABLED=true
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY=edge
+    volumes:
+      - ./keycloak_data:/opt/keycloak/data
       - ./import:/opt/keycloak/data/import
+    ports:
+      - "8080:8080"
+    networks:
+      - lanforge-net
     command: start --import-realm
 
-  backend:
-    build: ./backend/cmd/server
-    ports:
-      - "127.0.0.1:8080:8080"
-    environment:
-      OIDC_ISSUER: https://<your-domain>/realms/LanParty
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./templates:/app/templates
-    depends_on:
-      keycloak:
-        condition: service_healthy
+networks:
+  lanforge-net:
+    driver: bridge
 
-  dashboard:
-    build: ./dashboard
-    ports:
-      - "127.0.0.1:5173:5173"
-    environment:
-      VITE_OIDC_AUTHORITY: https://<your-domain>/realms/LanParty
-    depends_on:
-      - backend
+volumes:
+  caddy_data:
+  caddy_config:
 ```
 
-### Build & Deploy
+### Environment Variables
 
-**Backend image:**
+Set these before running or add to `backend/.env`:
 
+| Variable | Value (Development) | Value (Production) | Description |
+|----------|---------------------|-------------------|-------------|
+| `NODE_ENV` | development | production | Mode flag (default: unsets) |
+| `DOCKER_ENABLED` | true | false OR use Docker proxy | Enable Docker socket operations |
+| `OIDC_ISSUER` | http://localhost:8081/realms/LanParty | https://<domain>/realms/LanParty | Keycloak issuer URL |
+
+**Production Command Example:**
 ```bash
-cd backend/cmd/server
-docker build -t lanforge-backend .
-```
-
-**Dashboard image:**
-
-```bash
-cd dashboard
-docker build -t lanforge-dashboard .
+export NODE_ENV=production
+export DOCKER_ENABLED=false  # Disable Docker operations without proxy
+docker compose up -d
 ```
 
 ### Production Checklist
@@ -206,7 +308,8 @@ docker build -t lanforge-dashboard .
 - [ ] Use a **strong admin password** for Keycloak and disable the `start-dev` flag
 - [ ] Set **`KC_HOSTNAME`** to your Keycloak domain (e.g. `auth.yourlanparty.com`)
 - [ ] Enable **TLS** on all public endpoints via a reverse proxy (Caddy, nginx, Traefik)
-- [ ] Restrict Docker socket access — run the backend container **only** on the Docker host, not in a swarm
+- [ ] Configure Docker socket access: Set `DOCKER_ENABLED=false` in production OR use read-write-only volumes for templates
+- [ ] Run backend **directly on host** (not nested Docker), or implement option C environment variable controls: `NODE_ENV=production` + `DOCKER_ENABLED=false`
 - [ ] Configure **session timeouts** in the Keycloak realm to match your security posture
 - [ ] Set up **Keycloak backup & restore** for user and realm data
 - [ ] Limit **OIDC client scopes** — the dashboard only needs `openid`, `profile`, `email`, and `offline_access`
@@ -228,12 +331,12 @@ docker build -t lanforge-dashboard .
 lanforge/
 ├── docker-compose.yml            # Keycloak only (dev)
 ├── LanParty-realm.json           # Pre-configured Keycloak realm
-├── backend/
+├──   backend/
 │   ├── cmd/server/               # Go entrypoint
 │   ├── internal/
 │   │   ├── api/                  # HTTP handlers & router
 │   │   ├── auth/                 # OIDC middleware & RBAC
-│   │   ├── docker/               # Docker client wrapper
+│   │   ├── docker/               # Docker client wrapper with security checks
 │   │   ├── service/              # Business logic
 │   │   ├── templates/            # YAML template store
 │   │   └── websocket/            # Log, stats, deploy streams

@@ -1,8 +1,34 @@
+// import { defineConfig } from 'vite';
+// import vue from '@vitejs/plugin-vue';
+// import VueRouter from 'vue-router/vite'
+// import VueDevtools from 'vite-plugin-vue-devtools'
+// import tailwindcss from '@tailwindcss/vite';
+
+// export default defineConfig({
+//   plugins: [
+//     VueRouter(),
+//     VueDevtools(),
+//     tailwindcss(),
+//     vue(),
+//   ],
+//   server: {
+//     proxy: {
+//       // Proxy all /api requests to your backend
+//       '/api': {
+//         target: 'http://localhost:8080', // your backend URL
+//         changeOrigin: true,
+//         rewrite: (path) => path.replace(/^\/api/, ''), // optional: remove /api prefix
+//       },
+//     },
+//   },
+// });
+
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import VueRouter from 'vue-router/vite'
-import VueDevtools from 'vite-plugin-vue-devtools'
+import VueRouter from 'vue-router/vite';
+import VueDevtools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
+import path from 'path'; // Added for path resolution
 
 export default defineConfig({
   plugins: [
@@ -11,13 +37,17 @@ export default defineConfig({
     tailwindcss(),
     vue(),
   ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'), // Maps '@' to the 'src' directory
+    },
+  },
   server: {
     proxy: {
-      // Proxy all /api requests to your backend
       '/api': {
-        target: 'http://localhost:8080', // your backend URL
+        target: 'http://localhost:8080',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''), // optional: remove /api prefix
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

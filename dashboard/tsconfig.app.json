@@ -3,6 +3,9 @@
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "compilerOptions": {
     "rootDir": ".",
+    "paths": {
+      "@/*": ["./src/*"]                  // Maps @/ to the src directory
+    },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "types": ["vite/client"],
 
